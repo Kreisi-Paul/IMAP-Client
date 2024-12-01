@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Stack;
 
 @Slf4j
 public class ImapSocketManager extends Thread{
@@ -15,7 +16,7 @@ public class ImapSocketManager extends Thread{
     private InputStream inputStream;
     private SSLSocket socket;
     private ImapConnection imapConnection;
-    private List<Byte> bytesRead = new ArrayList<>();
+    private Stack<Byte> bytesRead = new Stack<>();
 
     public ImapSocketManager(ImapConnection imapConnection, SSLSocket socket) {
         this.imapConnection = imapConnection;
@@ -34,13 +35,11 @@ public class ImapSocketManager extends Thread{
     public void run() {
         while(!socket.isClosed()) {
             try {
-                bytesRead.add((byte)inputStream.read());
-
-                if(bytesRead.get(bytesRead.size()-1) == '\n') {
-                    byte[] debug = new byte[bytesRead.size()];
-                    for (int i = 0; i < bytesRead.size(); i++) {
-                        debug[i] = bytesRead.get(i);
-                        log.info(new String(debug));
+                int readByte = inputStream.read();
+                if(readByte != -1) {
+                    bytesRead.push((byte)readByte);
+                    if(bytesRead.peek() == '\n') {
+                        parseMessage();
                     }
                 }
             }
@@ -48,5 +47,14 @@ public class ImapSocketManager extends Thread{
                 log.error("Could not read byte from InputStream", e);
             }
         }
+    }
+
+    public boolean parseMessage() {
+        byte[] debug = new byte[bytesRead.size()];
+        for (int i = 0; i < bytesRead.size(); i++) {
+            debug[i] = bytesRead.get(i);
+        }
+        log.info(new String(debug));
+        return true;
     }
 }
